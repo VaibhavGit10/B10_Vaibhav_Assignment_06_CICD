@@ -41,7 +41,7 @@ def test_delete_student(client):
     student = students_collection.insert_one({"name": "Charlie", "age": 23})
     response = client.delete(f'/students/{student.inserted_id}')
     assert response.status_code == 200
-    assert response.json["message"] == "Deleted"
+    assert response.json["message"] == "Student deleted successfully"
 
     # Ensure student is deleted
     response = client.get(f'/students/{student.inserted_id}')

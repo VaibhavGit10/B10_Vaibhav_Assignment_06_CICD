@@ -1,73 +1,88 @@
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from pymongo import MongoClient
 from bson import ObjectId
-from bson.regex import Regex
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env (for local dev)
+load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all routes
 
-# Connect to MongoDB
-client = MongoClient("mongodb+srv://mohan:herovired@herovired.f3do4.mongodb.net/")  # Replace with your MongoDB URI
-db = client["student_db"]  # Database name
-students_collection = db["students"]  # Collection name
+# Secure MongoDB connection using environment variables
+MONGO_URI = os.environ.get("MONGO_URI")  # e.g. mongodb+srv://user:pass@cluster0.mongodb.net/
+DB_NAME = os.environ.get("DB_NAME", "student_db")
 
-# Database functions
-def add_student(data):
-    student = {"name": data["name"], "age": data["age"]}
-    result = students_collection.insert_one(student)
-    student["_id"] = str(result.inserted_id)  # Convert ObjectId to string
-    return student
+client = MongoClient(MONGO_URI)
+db = client[DB_NAME]
+students_collection = db["students"]
 
-def get_students():
-    return [{"_id": str(student["_id"]), "name": student["name"], "age": student["age"]} for student in students_collection.find()]
+# Convert MongoDB ObjectId to string
+def serialize_student(student):
+    return {
+        "_id": str(student["_id"]),
+        "name": student["name"],
+        "age": student["age"]
+    }
 
-def get_student_by_id(student_id):
-    student = students_collection.find_one({"_id": ObjectId(student_id)})
-    if student:
-        student["_id"] = str(student["_id"])  # Convert ObjectId to string
-    return student
-
-def delete_student(student_id):
-    result = students_collection.delete_one({"_id": ObjectId(student_id)})
-    if result.deleted_count > 0:
-        return {"message": "Deleted"}
-    return {"error": "Student not found"}
-
-# Flask routes
+# Routes
 @app.route('/')
 def home():
-    return "Welcome to the Student Management System API!", 200
+    return jsonify({"message": "Welcome to the Student Management System API!"}), 200
 
 @app.route('/students', methods=['POST'])
-def add():
+def add_student():
     data = request.get_json()
-    if "name" not in data or "age" not in data:
+    if not data or "name" not in data or "age" not in data:
         return jsonify({"error": "Missing 'name' or 'age'"}), 400
-    return jsonify(add_student(data)), 201
+    student = {
+        "name": data["name"],
+        "age": data["age"]
+    }
+    result = students_collection.insert_one(student)
+    student["_id"] = str(result.inserted_id)
+    return jsonify(student), 201
 
 @app.route('/students', methods=['GET'])
-def get_all():
-    return jsonify(get_students()), 200
+def get_students():
+    students = [serialize_student(s) for s in students_collection.find()]
+    return jsonify(students), 200
 
 @app.route('/students/<string:student_id>', methods=['GET'])
-def get_by_id(student_id):
-    student = get_student_by_id(student_id)
-    if student:
-        return jsonify(student), 200
-    return jsonify({"error": "Student not found"}), 404
+def get_student_by_id(student_id):
+    try:
+        student = students_collection.find_one({"_id": ObjectId(student_id)})
+        if student:
+            return jsonify(serialize_student(student)), 200
+        return jsonify({"error": "Student not found"}), 404
+    except:
+        return jsonify({"error": "Invalid ID format"}), 400
 
 @app.route('/students/<string:student_id>', methods=['DELETE'])
-def delete(student_id):
-    return jsonify(delete_student(student_id)), 200
+def delete_student(student_id):
+    try:
+        result = students_collection.delete_one({"_id": ObjectId(student_id)})
+        if result.deleted_count:
+            return jsonify({"message": "Student deleted successfully"}), 200
+        return jsonify({"error": "Student not found"}), 404
+    except:
+        return jsonify({"error": "Invalid ID format"}), 400
 
 @app.route('/students/name/<string:name>', methods=['GET'])
-def get_by_name(name):
-    # Use regex to find students by name
+def get_student_by_name(name):
     students = students_collection.find({"name": {"$regex": f".*{name}.*", "$options": "i"}})
-    students_list = [{"_id": str(student["_id"]), "name": student["name"], "age": student["age"]} for student in students]
-    if students_list:
-        return jsonify(students_list), 200
+    student_list = [serialize_student(s) for s in students]
+    if student_list:
+        return jsonify(student_list), 200
     return jsonify({"error": "No students found with the given name"}), 404
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "OK"}), 200
+
+# Run server
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
