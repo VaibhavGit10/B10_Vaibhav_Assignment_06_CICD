@@ -3,8 +3,10 @@ name: CI/CD Pipeline - Flask App
 on:
   push:
     branches:
-      - staging
       - main
+      - staging
+  release:
+    types: [created]
 
 jobs:
   build-and-test:
@@ -25,6 +27,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run tests
+        env:
+          MONGO_URI: ${{ secrets.MONGOURI }}
         run: |
           pytest
 
@@ -37,7 +41,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Deploy to Staging Server via SSH
+      - name: Deploy to Staging Server
         uses: appleboy/ssh-action@v0.1.6
         with:
           host: ${{ secrets.STAGING_HOST }}
@@ -45,27 +49,8 @@ jobs:
           key: ${{ secrets.STAGING_KEY }}
           port: 22
           script: |
-            cd /path/to/your/app
+            cd B10_Vaibhav_Assignment_06_CICD
             git pull origin staging
-            sudo systemctl restart your-flask-app.service
-
-  deploy-to-production:
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Deploy to Production Server via SSH
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.PRODUCTION_HOST }}
-          username: ${{ secrets.PRODUCTION_USER }}
-          key: ${{ secrets.PRODUCTION_KEY }}
-          port: 22
-          script: |
-            cd /path/to/your/app
-            git pull origin main
+            # Export Mongo URI as env variable if needed by your app startup script
+            export MONGO_URI=${{ secrets.MONGOURI }}
             sudo systemctl restart your-flask-app.service
