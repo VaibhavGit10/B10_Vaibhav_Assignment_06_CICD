@@ -21,15 +21,18 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Create and activate virtual environment, install dependencies
         run: |
+          python -m venv venv
+          source venv/bin/activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests
+      - name: Run tests in virtual environment
         env:
           MONGO_URI: ${{ secrets.MONGO_URI }}
         run: |
+          source venv/bin/activate
           pytest
 
   deploy-to-staging:
@@ -51,6 +54,5 @@ jobs:
           script: |
             cd B10_Vaibhav_Assignment_06_CICD
             git pull origin staging
-            # Export Mongo URI as env variable if needed by your app startup script
-            export MONGO_URI=${{ secrets.MONGOURI }}
+            export MONGO_URI=${{ secrets.MONGO_URI }}
             sudo systemctl restart your-flask-app.service
