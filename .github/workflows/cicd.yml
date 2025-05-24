@@ -56,3 +56,25 @@ jobs:
             git pull origin staging
             export MONGO_URI=${{ secrets.MONGO_URI }}
             sudo systemctl restart b10flask.service
+
+  deploy-to-production:
+    needs: build-and-test
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Deploy to Production Server
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_KEY }}
+          port: 22
+          script: |
+            cd B10_Vaibhav_Assignment_06_CICD
+            git pull origin main
+            export MONGO_URI=${{ secrets.MONGO_URI }}
+            sudo systemctl restart b10flask-prod.service
