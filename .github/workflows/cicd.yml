@@ -28,7 +28,7 @@ jobs:
 
       - name: Run tests
         env:
-          MONGO_URI: ${{ secrets.MONGOURI }}
+          MONGO_URI: ${{ secrets.MONGO_URI }}
         run: |
           pytest
 
