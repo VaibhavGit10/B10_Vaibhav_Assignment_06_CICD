@@ -55,4 +55,4 @@ jobs:
             cd B10_Vaibhav_Assignment_06_CICD
             git pull origin staging
             export MONGO_URI=${{ secrets.MONGO_URI }}
-            sudo systemctl restart your-flask-app.service
+            sudo systemctl restart b10flask.service
